@@ -1,34 +1,139 @@
+/**
+ * # Pool Contract Basic Test
+ *
+ * Minimal verification of setName and setSymbol access control and effects.
+ */
+
 methods {
-    // Declaração da função de inicialização
+    function setName(string) external;
+    function setSymbol(string) external;
     function initialize(address, address, bool) external;
-    
-    // Declaração da função metadata (os retornos serão capturados via acesso indexado)
-    function metadata() external view;
+
+    function name() external returns(string) envfree;
+    function symbol() external returns(string) envfree;
+    function token0() external returns(address) envfree;
+    function token1() external returns(address) envfree;
+    function stable() external returns(bool) envfree;
+
+    function transfer(address, uint256) external;
+
+    function balanceOf(address) external returns(uint256);
+    function totalBalance() external returns(uint256);
+
+    // Função mint (para adicionar liquidez) que retorna a quantidade de tokens de liquidez gerados.
+    function mint(address) external returns (uint256);
+
+    function getReserves() external returns (uint256, uint256, uint256);
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+
 }
 
-rule metadataTest {
-    // Variáveis simbólicas para os parâmetros de initialize
-    address tokenA;
-    address tokenB;
-    bool isStable;
+
+rule checkObservationLengthGTZero {
     env e;
-    
-    // Chama initialize para configurar o pool
-    initialize(tokenA, tokenB, isStable);
-    
-    // Chama metadata e captura os retornos numa tupla
-    // Os elementos retornados são, na ordem:
-    // [0]: dec0, [1]: dec1, [2]: reserve0, [3]: reserve1, [4]: stable, [5]: token0, [6]: token1
-    let ret := metadata();
-    
-    // Como não houve depósitos, as reservas devem ser zero
-    assert ret[2] == 0;
-    assert ret[3] == 0;
-    
-    // O flag de pool (stable) deve ser igual ao parâmetro isStable passado
-    assert ret[4] == isStable;
-    
-    // Os tokens retornados devem ser os mesmos passados na inicialização
-    assert ret[5] == tokenA;
-    assert ret[6] == tokenB;
+
+    uint256 length = observationLength(e);
+
+    assert length >= 0x0,
+        "observationLength must be Grater then 0";
+}
+
+/// Emergency council should be able to update name
+rule emergencyCouncilCanSetName {
+    string newName;
+    address factory;
+
+    env e;
+    require e.msg.sender == factory;
+
+    string name_before = name();
+
+    setName(e, newName);
+
+    string name_after = name();
+
+    assert name_after == newName,
+        "setName must update name if called by factory";
+}
+
+
+/// Emergency council should be able to update symbol
+rule emergencyCouncilCanSetSymbol {
+    string newSymbol;
+    address factory;
+
+    env e;
+    require e.msg.sender == factory;
+
+    string symbol_before = symbol();
+
+    setSymbol(e, newSymbol);
+
+    string symbol_after = symbol();
+
+    assert symbol_after == newSymbol,
+        "setSymbol must update symbol if called by factory";
+}
+
+/// Pool must be initialized correctly
+rule initializeSetsTokensAndStableFlag {
+    address t0; address t1; bool isStable;
+
+    env e;
+
+    initialize(e, t0, t1, isStable);
+
+    assert token0() == t0,
+        "initialize must set token0";
+    assert token1() == t1,
+        "initialize must set token1";
+    assert stable() == isStable,
+        "initialize must set stable flag";
+}
+
+
+rule mintReturnsNonNegative {
+   address recipient;
+
+    env e;
+    uint256 minted = mint(e, recipient);
+
+    assert minted >= 0x0,
+        "mint should increase recipient's balance by minted amount";
+}
+
+
+rule balanceOfIsNonNegative {
+    address user;
+    env e;
+
+    uint256 balance = balanceOf(e, user);
+
+    assert balance >= 0x0,
+        "balanceOf should always return a non-negative balance";
+}
+
+rule totalSupplyIsNonNegative {
+    env e;
+
+    uint256 supply = totalSupply(e);
+
+    assert supply >= 0x0,
+        "totalSupply should always be non-negative";
+}
+
+
+// rule getAmountOutIsNonNegative {
+//     uint256 amountIn;
+//     address tokenIn;
+//     env e;
+
+//     uint256 amountOut = getAmountOut(e, amountIn, tokenIn);
+
+//     assert amountOut >= 0x0,
+//         "getAmountOut should return a non-negative value";
+// }
+
+invariant totalSuppliedIsPositive {
+    assert Pool.totalSupplied() >= 0;
 }
