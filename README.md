@@ -34,6 +34,12 @@ chmod +x ./bootstrap.sh
 certoraRun src/ERC20Token.sol --verify ERC20Token:specs/ERC20Token.spec
 ```
 
+- Or run the following command inside the container for Pool.sol
+```bash
+certoraRun src/Pool.sol \
+  --verify Pool:specs/Pool.spec \
+  --optimistic_loop
+```
 - you can also run the following commands to install another version of the solidity compiler(solc), the default is v0.8.0
 
 ```bash

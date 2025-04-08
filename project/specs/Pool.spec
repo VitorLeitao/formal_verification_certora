@@ -19,13 +19,10 @@ methods {
 
     function balanceOf(address) external returns(uint256);
     function totalBalance() external returns(uint256);
-
-    // Função mint (para adicionar liquidez) que retorna a quantidade de tokens de liquidez gerados.
     function mint(address) external returns (uint256);
 
     function getReserves() external returns (uint256, uint256, uint256);
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
-
 }
 
 
@@ -123,17 +120,63 @@ rule totalSupplyIsNonNegative {
 }
 
 
-// rule getAmountOutIsNonNegative {
-//     uint256 amountIn;
-//     address tokenIn;
-//     env e;
 
-//     uint256 amountOut = getAmountOut(e, amountIn, tokenIn);
+rule balanceOfIsAlwaysTheSame {
+    address user;
+    env e;
 
-//     assert amountOut >= 0x0,
-//         "getAmountOut should return a non-negative value";
-// }
+    uint256 balance0 = balanceOf(e, user);
+    uint256 balance1 = balanceOf(e, user);
 
-invariant totalSuppliedIsPositive {
-    assert Pool.totalSupplied() >= 0;
+    assert balance0 == balance1,
+        "balanceOf should always return the same value for the same user, if there was no operations";
+}
+
+rule mintIncreasesTotalSupply {
+    env e;
+    address user;
+
+    uint256 supply_before = totalSupply(e);
+
+    mint(e, user);
+
+    uint256 supply_after = totalSupply(e);
+
+    assert supply_after >= supply_before,
+        "mint must not reduce totalSupply";
+}
+
+rule stableFlagIsSetCorrectly {
+    env e;
+    address t0;
+    address t1;
+    bool isStable;
+
+    initialize(e, t0, t1, isStable);
+
+    assert stable() == isStable,
+        "stable flag must match the value passed during initialize";
+}
+
+rule nameChangesAfterSetName {
+    env e;
+    string newName;
+
+    setName(e, newName);
+    string currentName = name();
+
+    assert currentName == newName,
+        "name must match the value set by setName";
+}
+
+
+rule symbolChangesAfterSetSymbol {
+    env e;
+    string newSymbol;
+
+    setSymbol(e, newSymbol);
+    string currentSymbol = symbol();
+
+    assert currentSymbol == newSymbol,
+        "symbol must match the value set by setSymbol";
 }
